@@ -37,10 +37,11 @@ function init(opts = {}) {
   if (sdk) return api;
   cfg = {
     endpoint: (opts.endpoint || env("SHRAVELLE_ENDPOINT", "http://localhost:4318")).replace(/\/$/, ""),
-    apiKey: opts.apiKey || env("SHRAVELLE_API_KEY", ""),
-    serviceName: opts.serviceName || env("SHRAVELLE_SERVICE_NAME", env("OTEL_SERVICE_NAME", process.env.npm_package_name || "node-app")),
-    serviceVersion: opts.serviceVersion || env("SHRAVELLE_SERVICE_VERSION", process.env.npm_package_version || ""),
-    environment: opts.environment || env("SHRAVELLE_ENV", env("NODE_ENV", "production")),
+    apiKey: opts.apiKey || env("SHRAVELLE_API_KEY", env("SHRAVELLE_LICENSE_KEY", "")),
+    serviceName: opts.serviceName || env("SHRAVELLE_APP_NAME", env("SHRAVELLE_SERVICE_NAME", env("OTEL_SERVICE_NAME", process.env.npm_package_name || "node-app"))),
+    serviceVersion: opts.serviceVersion || env("SHRAVELLE_APP_VERSION", env("SHRAVELLE_SERVICE_VERSION", process.env.npm_package_version || "")),
+    environment: opts.environment || env("SHRAVELLE_APP_ENV", env("SHRAVELLE_ENV", env("NODE_ENV", "production"))),
+    organisation: opts.organisation || env("SHRAVELLE_ORGANISATION", env("SHRAVELLE_ORGANIZATION", "")),
     sampleRate: Number(opts.sampleRate ?? env("SHRAVELLE_SAMPLE_RATE", 1)),
     captureLogs: opts.captureLogs ?? env("SHRAVELLE_CAPTURE_CONSOLE", "true") !== "false",
     metricIntervalMs: Number(opts.metricIntervalMs ?? 30000),
@@ -58,6 +59,7 @@ function init(opts = {}) {
     "process.runtime.name": "nodejs",
     "process.runtime.version": process.versions.node,
     "telemetry.distro.name": "shravelle-node",
+    ...(cfg.organisation ? { "shravelle.organization": cfg.organisation } : {}),
     ...(opts.resourceAttributes || {}),
   });
   sdk = new NodeSDK({
