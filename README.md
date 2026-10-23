@@ -1,5 +1,9 @@
 # Node.js
 
+Published as a built, minified package: the first-party source is bundled into `dist/`
+(dependencies stay external and install normally). Regenerate with `npm install && npm run build`
+(also runs automatically on `npm publish`).
+
 ```bash
 npm install ./sdks/shravelle-sdk-node      # or publish it to your registry as @shravelle/node
 ```

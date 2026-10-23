@@ -2,12 +2,34 @@
   "name": "@shravelle/node",
   "version": "1.0.0",
   "description": "Shravelle APM for Node.js: traces, metrics, logs and errors via OpenTelemetry with zero-config auto-instrumentation (Express, Fastify, NestJS, Koa, Hapi, Next.js, http, pg, mysql, mongodb, redis, kafkajs, grpc, aws-sdk ...)",
-  "main": "index.js",
+  "main": "dist/index.js",
   "types": "index.d.ts",
-  "bin": { "shravelle-node": "bin/shravelle-node.js" },
-  "files": ["index.js", "index.d.ts", "register.js", "profiler.js", "bin"],
-  "engines": { "node": ">=18" },
+  "bin": {
+    "shravelle-node": "dist/bin/shravelle-node.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./register": "./dist/register.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "index.d.ts"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "prepublishOnly": "npm run build"
+  },
   "license": "MIT",
+  "devDependencies": {
+    "esbuild": "^0.24.2"
+  },
   "dependencies": {
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/api-logs": "^0.203.0",
