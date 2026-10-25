@@ -10,7 +10,7 @@ import { readFileSync } from "node:fs";
 
 const pkg = JSON.parse(readFileSync(new URL("./package.json", import.meta.url)));
 const banner = { js: `/*! Shravelle Node SDK v${pkg.version} | (c) Shravelle | MIT | https://shravelle.com */` };
-const base = { minify: true, platform: "node", target: ["node18"], legalComments: "none", banner, logLevel: "info" };
+const base = { minify: true, platform: "node", target: ["node14"], legalComments: "none", banner, logLevel: "info" };
 
 // Main entry: bundle in ./profiler.js, keep OTel + other deps external.
 await build({ ...base, entryPoints: ["index.js"], outfile: "dist/index.js", format: "cjs", bundle: true, packages: "external" });

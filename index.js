@@ -18,10 +18,12 @@ const { OTLPLogExporter } = require("@opentelemetry/exporter-logs-otlp-proto");
 const { PeriodicExportingMetricReader } = require("@opentelemetry/sdk-metrics");
 const { BatchLogRecordProcessor } = require("@opentelemetry/sdk-logs");
 const { TraceIdRatioBasedSampler, ParentBasedSampler } = require("@opentelemetry/sdk-trace-base");
-const { resourceFromAttributes } = require("@opentelemetry/resources");
+const { Resource } = require("@opentelemetry/resources");
 const api = require("@opentelemetry/api");
 const { logs, SeverityNumber } = require("@opentelemetry/api-logs");
 const os = require("os");
+const http = require("http");
+const https = require("https");
 
 let sdk = null;
 let cfg = null;
@@ -51,7 +53,7 @@ function init(opts = {}) {
   if (!cfg.apiKey) { console.warn("[shravelle] SHRAVELLE_API_KEY is not set; telemetry will be rejected"); }
   if (cfg.debug) api.diag.setLogger(new api.DiagConsoleLogger(), api.DiagLogLevel.INFO);
   const headers = { "x-api-key": cfg.apiKey };
-  const resource = resourceFromAttributes({
+  const resource = new Resource({
     "service.name": cfg.serviceName,
     "service.version": cfg.serviceVersion,
     "deployment.environment.name": cfg.environment,
@@ -67,7 +69,7 @@ function init(opts = {}) {
     sampler: new ParentBasedSampler({ root: new TraceIdRatioBasedSampler(cfg.sampleRate) }),
     traceExporter: new OTLPTraceExporter({ url: cfg.endpoint + "/v1/traces", headers }),
     metricReader: new PeriodicExportingMetricReader({ exporter: new OTLPMetricExporter({ url: cfg.endpoint + "/v1/metrics", headers }), exportIntervalMillis: cfg.metricIntervalMs }),
-    logRecordProcessors: [new BatchLogRecordProcessor(new OTLPLogExporter({ url: cfg.endpoint + "/v1/logs", headers }))],
+    logRecordProcessor: new BatchLogRecordProcessor(new OTLPLogExporter({ url: cfg.endpoint + "/v1/logs", headers })),
     instrumentations: [getNodeAutoInstrumentations({
       "@opentelemetry/instrumentation-fs": { enabled: false }, // very noisy, rarely useful
       ...cfg.instrumentations,
@@ -150,9 +152,19 @@ function gauge(name, opts) { return api.metrics.getMeter("shravelle").createGaug
 /** Record a deployment marker (call from your release script). */
 async function recordDeployment({ version, commit = "", description = "", user = "" } = {}) {
   const c = cfg || { endpoint: env("SHRAVELLE_ENDPOINT", "http://localhost:4318"), apiKey: env("SHRAVELLE_API_KEY", ""), serviceName: env("SHRAVELLE_SERVICE_NAME", "node-app") };
-  const res = await fetch(c.endpoint.replace(/\/$/, "") + "/v1/deployments", { method: "POST", headers: { "Content-Type": "application/json", "X-API-Key": c.apiKey },
-    body: JSON.stringify({ service: c.serviceName, version: version || c.serviceVersion, commit, description, user }) });
-  if (!res.ok) throw new Error("deployment marker failed: HTTP " + res.status);
+  const body = JSON.stringify({ service: c.serviceName, version: version || c.serviceVersion, commit, description, user });
+  const url = new URL(c.endpoint.replace(/\/$/, "") + "/v1/deployments");
+  const transport = url.protocol === "https:" ? https : http;
+  await new Promise((resolve, reject) => {
+    const req = transport.request(url, { method: "POST", headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body), "X-API-Key": c.apiKey } }, (res) => {
+      res.resume();
+      if (res.statusCode >= 200 && res.statusCode < 300) resolve();
+      else reject(new Error("deployment marker failed: HTTP " + res.statusCode));
+    });
+    req.on("error", reject);
+    req.write(body);
+    req.end();
+  });
 }
 
 /** Flush and stop exporting (called automatically on SIGTERM/SIGINT). */
